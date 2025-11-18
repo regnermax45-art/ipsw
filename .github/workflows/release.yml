@@ -4,18 +4,10 @@ on:
     tags:
       - v*.*.*
   workflow_dispatch:
-  # pull_request:
-  #   branches:
-  #     - master
 
 jobs:
   goreleaser:
-    strategy:
-      matrix:
-        platform: [ubuntu-latest, windows-latest]
-        # platform: [ubuntu-latest, windows-latest, macos-13]
-
-    runs-on: ${{ matrix.platform }}
+    runs-on: windows-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -28,61 +20,11 @@ jobs:
         with:
           go-version: "stable"
 
-      - # LINUX ################################################################
-        if: matrix.platform == 'ubuntu-latest'
-        name: linux-deps
-        run: |
-          sudo apt-get -yq install gcc-aarch64-linux-gnu cmake pkg-config jq libusb-1.0-0-dev
-      - if: matrix.platform == 'ubuntu-latest'
-        name: install-unicorn
-        run: |
-          cd /tmp
-          git clone https://github.com/unicorn-engine/unicorn.git
-          cd unicorn
-          mkdir build; cd build
-          # cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=gcc-aarch64-linux-gnu -DUNICORN_ARCH=aarch64
-          cmake .. -DCMAKE_BUILD_TYPE=Release -DUNICORN_ARCH=aarch64
-          make
-          sudo make install
-      # -
-      #   if: matrix.platform == 'ubuntu-latest'
-      #   name: setup-snapcraft
-      #   # FIXME: the mkdirs are a hack for https://github.com/goreleaser/goreleaser/issues/1715
-      #   run: |
-      #     sudo apt-get update
-      #     sudo apt-get -yq --no-install-suggests --no-install-recommends install snapcraft
-      #     mkdir -p $HOME/.cache/snapcraft/download
-      #     mkdir -p $HOME/.cache/snapcraft/stage-packages
-      # -
-      #   name: snapcraft-login
-      #   if: matrix.platform == 'ubuntu-latest'
-      #   run: snapcraft login --with <(echo "${{ secrets.SNAPCRAFT_LOGIN }}")
-      - if: matrix.platform == 'ubuntu-latest'
-        name: Run GoReleaser
-        uses: goreleaser/goreleaser-action@v6
-        with:
-          distribution: goreleaser
-          version: latest
-          args: release --rm-dist -f hack/goreleaser/linux.yml
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - if: matrix.platform == 'ubuntu-latest'
-        name: Upload assets
-        uses: actions/upload-artifact@v5
-        with:
-          name: ipsw_linux
-          path: dist/*
-
-      -  # WINDOWS ################################################################
-        if: matrix.platform == 'windows-latest'
-        name: windows-deps
+      - name: windows-deps
         run: |
           choco install zig
-          dir C:\ProgramData\chocolatey\bin
-          dir C:\ProgramData\chocolatey\lib\zig\tools
-      -
-        if: matrix.platform == 'windows-latest'
-        name: Run GoReleaser
+
+      - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v6
         with:
           distribution: goreleaser
@@ -91,37 +33,9 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SCOOP_TAP_GITHUB_TOKEN: ${{ secrets.GH_SCOOP }}
-      -
-        if: matrix.platform == 'windows-latest'
-        name: Upload assets
+
+      - name: Upload ipsw.exe artifact
         uses: actions/upload-artifact@v5
         with:
-          name: ipsw_windows
-          path: dist/*
-
-      # -  # MACOS ################################################################
-      #   if: matrix.platform == 'macos-13'
-      #   name: macos-deps
-      #   run: |
-      #     brew tap anchore/syft
-      #     brew install libusb unicorn syft
-      #     # arch -arch arm64 brew install libusb unicorn
-      #     # arch -arch x86_64 brew install libusb unicorn
-      # -
-      #   if: matrix.platform == 'macos-13'
-      #   name: Run GoReleaser
-      #   uses: goreleaser/goreleaser-action@v6
-      #   with:
-      #     distribution: goreleaser
-      #     version: latest
-      #     args: release --rm-dist -f hack/goreleaser/darwin.yml
-      #   env:
-      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      #     SCOOP_TAP_GITHUB_TOKEN: ${{ secrets.GH_SCOOP }}
-      # -
-      #   if: matrix.platform == 'macos-13'
-      #   name: Upload assets
-      #   uses: actions/upload-artifact@v5
-      #   with:
-      #     name: ipsw_macos
-      #     path: dist/*
+          name: ipsw-windows
+          path: dist/ipsw_windows_amd64/ipsw.exe

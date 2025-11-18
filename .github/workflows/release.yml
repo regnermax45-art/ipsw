@@ -1,32 +1,72 @@
-name: Release
+name: Go
 on:
   push:
-    tags:
-      - v*.*.*
-  workflow_dispatch:
-
+    branches:
+      - master
+    paths:
+      - "**/*.go"
+      - "go.mod"
+      - "go.sum" 
+      - "cmd/**"
+      - "pkg/**"
+      - "internal/**"
+      - "api/**"
+      - "Makefile"
+      - ".github/workflows/go.yml"
+      - ".github/workflows/release.yml"
+  pull_request:
+    branches:
+      - master
+concurrency:
+  group: ${{ github.ref }}
+  cancel-in-progress: true
 jobs:
-  goreleaser:
-    runs-on: windows-latest
+  build:
+    strategy:
+      matrix:
+        platform: [windows-latest]
+    runs-on: ${{ matrix.platform }}
     steps:
       - name: Checkout
         uses: actions/checkout@v5
         with:
           fetch-depth: 0
-      - name: Fetch all tags
-        run: git fetch --force --tags
       - name: Set up Go
         uses: actions/setup-go@v6
         with:
           go-version: "stable"
 
-      - name: windows-deps
-        run: |
-          choco install zig
-
-
-      - name: Upload ipsw.exe artifact
-        uses: actions/upload-artifact@v5
+      - name: Cache go.mod (Windows)
+        uses: actions/cache@v4
         with:
-          name: ipsw-windows
-          path: dist/ipsw_windows_amd64/ipsw.exe
+          path: |
+            ~\AppData\Local\go-build
+            ~\go\pkg\mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: Get dependencies
+        run: |
+          go mod download
+
+      - name: Build Dependencies (Windows)
+        shell: pwsh
+        run: |
+          iwr get.scoop.sh -outfile 'install.ps1'
+          .\install.ps1 -RunAsAdmin
+          Join-Path (Resolve-Path ~).Path "scoop\shims" >> $Env:GITHUB_PATH
+
+      - name: Build (Windows)
+        env:
+          CGO_LDFLAGS: -LD:\a\ipsw\ipsw\lzfse\build\Debug
+        run: |
+          go build -o build/dist/ipsw.exe -ldflags "-linkmode external -extldflags -static" ./cmd/ipsw
+          dir build/dist
+
+      - name: Upload Windows IPSW Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ipsw-windows-exe
+          path: build/dist/ipsw.exe
+          retention-days: 7

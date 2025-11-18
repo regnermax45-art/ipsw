@@ -3,6 +3,7 @@ on:
   push:
     tags:
       - v*.*.*
+  workflow_dispatch:
   # pull_request:
   #   branches:
   #     - master
@@ -11,8 +12,8 @@ jobs:
   goreleaser:
     strategy:
       matrix:
+        platform: [ubuntu-latest, windows-latest]
         # platform: [ubuntu-latest, windows-latest, macos-13]
-        platform: [ubuntu-latest]
 
     runs-on: ${{ matrix.platform }}
     steps:
@@ -72,38 +73,31 @@ jobs:
           name: ipsw_linux
           path: dist/*
 
-      # -  # WINDOWS ################################################################
-      #   if: matrix.platform == 'windows-latest'
-      #   name: windows-deps
-      #   run: |
-      #     choco install zig
-      #     dir C:\ProgramData\chocolatey\bin
-      #     dir C:\ProgramData\chocolatey\lib\zig\tools
-      # -
-      #   if: matrix.platform == 'windows-latest'
-      #   name: Run GoReleaser
-      #   uses: goreleaser/goreleaser-action@v6
-      #   with:
-      #     distribution: goreleaser
-      #     version: latest
-      #     args: release --rm-dist -f hack/goreleaser/windows.yml
-      #   env:
-      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      #     SCOOP_TAP_GITHUB_TOKEN: ${{ secrets.GH_SCOOP }}
-      # -
-      #   if: matrix.platform == 'ubuntu-latest'
-      #   name: Upload assets
-      #   uses: actions/upload-artifact@v5
-      #   with:
-      #     name: disass_linux
-      #     path: dist/*
-      # -
-      #   if: matrix.platform == 'windows-latest'
-      #   name: Upload assets
-      #   uses: actions/upload-artifact@v5
-      #   with:
-      #     name: ipsw_windows
-      #     path: dist/*
+      -  # WINDOWS ################################################################
+        if: matrix.platform == 'windows-latest'
+        name: windows-deps
+        run: |
+          choco install zig
+          dir C:\ProgramData\chocolatey\bin
+          dir C:\ProgramData\chocolatey\lib\zig\tools
+      -
+        if: matrix.platform == 'windows-latest'
+        name: Run GoReleaser
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          distribution: goreleaser
+          version: latest
+          args: release --rm-dist -f hack/goreleaser/windows.yml
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SCOOP_TAP_GITHUB_TOKEN: ${{ secrets.GH_SCOOP }}
+      -
+        if: matrix.platform == 'windows-latest'
+        name: Upload assets
+        uses: actions/upload-artifact@v5
+        with:
+          name: ipsw_windows
+          path: dist/*
 
       # -  # MACOS ################################################################
       #   if: matrix.platform == 'macos-13'
